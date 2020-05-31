@@ -1,0 +1,5 @@
+transformers
+gsutils
+tensorflow==1.15.0
+tensorflow-gpu
+tensorflow-addons
