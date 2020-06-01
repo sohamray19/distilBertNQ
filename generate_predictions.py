@@ -1,6 +1,6 @@
 # -----------------------------------------------------------------------------------------------------------------------------------------------
 # Code referenced from Google bert-joint-baseline to generate "predictions.json" for evaluation script
-
+# -----------------------------------------------------------------------------------------------------------------------------------------------
 import collections
 import json
 import gzip
@@ -333,6 +333,7 @@ def get_prediction_json(
 
         token_maps = token_maps.numpy().tolist()
 
+        # based on the bert baseline paper
         start_pos_prob_dist = tf.nn.softmax(start_pos_logits, axis=-1).numpy().tolist()
         end_pos_prob_dist = tf.nn.softmax(end_pos_logits, axis=-1).numpy().tolist()
         answer_type_prob_dist = (
@@ -353,12 +354,14 @@ def get_prediction_json(
             end_pos_prob_dist,
             answer_type_prob_dist,
         ):
+            # if unspecified, use all indexes
             if best_indexes_size < 0:
                 best_indexes_size = len(start_pos_logits)
 
             cls_start_logit = s[0]
             cls_end_logit = e[0]
 
+            # get 'best_indexes_size' number of indexes with highest probabilty
             start_indexes = get_best_indexes(s, best_indexes_size, token_map)
             end_indexes = get_best_indexes(e, best_indexes_size, token_map)
 
@@ -367,6 +370,7 @@ def get_prediction_json(
             sp = [sp[idx] for idx in start_indexes]
             ep = [ep[idx] for idx in end_indexes]
 
+            # create results dict and append to list
             raw_result = {
                 "unique_id": uid,
                 "start_indexes": start_indexes,
