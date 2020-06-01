@@ -60,6 +60,7 @@ python run_distilbert.py --training_mode=True --train_file=./train.tf_record \
 --init_learning_rate=3e-5 --init_weight_decay_rate=0.01
 ```
 
+Note: To resolve any OOM or resource exhaustion errors try reducing batch-size
 ## Validation
 To generate the validation predictions in a predictions.json file, run this  command
 ```
@@ -164,3 +165,6 @@ and I believe that I learned a lot from it!
 
 
 ## Charity Organisation of choice
+My hometown in India has been hit with the worst cyclone in decades. I would love to think that I was 
+able to provide any little assistance. Additionally, I believe USD will be able to make more of an impact in India. 
+Donate here (if the code works! :pray ).  
