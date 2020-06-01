@@ -3,6 +3,14 @@
 Question Answering performed on Google's Natural Questions dataset using Huggingface's 
 DistilBert Transformer
 
+## Results
+Best score:
+* **F1-score** = 58
+* **Precision** =
+* **Recall** =
+
+Winning hyperparameter setting is highlighted in the excel sheet attached below (see hyperparameter tuning section).
+
 ## Getting Started
  * Clone this repository to get started. 
  * Make sure you have python 3 installed.
@@ -16,6 +24,11 @@ You will need:
 ```
 pip install -r requirements_data_gen.txt
 ```
+Tensorflow 2.0 should automatically start using the gpu if cuda and cudnn are installed.
+Here are some links that might help with troubleshooting:
+[1](https://www.tensorflow.org/install/gpu), [2](https://www.tensorflow.org/guide/gpu)
+Note: If a TensorFlow operation has both CPU and GPU implementations, by default the GPU devices will be given priority when the operation is assigned to a device.
+
 ### Getting the data
 To get the preprocessed training set, and vocabulary from Google's bert-joint-baseline, run these commands
 ```

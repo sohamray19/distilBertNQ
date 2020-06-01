@@ -263,7 +263,9 @@ class TFNQModel(TFDistilBertPreTrainedModel):
         inputs = inputs[:2] if isinstance(inputs, tuple) else inputs
         outputs = self.backend(inputs, **kwargs)
         # break distilbert output into sequence output and pooled output
+        # same as sequence output for bert (batch_size, 512, hidden_dim)
         sequence_output = outputs[0]
+        # same as CLS output for bert (batch_size, hidden_dim)
         pooled_output = sequence_output[:, 0, :]
         # dropout for both outputs
         sequence_output = self.seq_output_dropout(
@@ -454,6 +456,7 @@ def compute_gradient(
     # to speed up automatic differentiation, operations are recorded on a gradient 'tape'
     with tf.GradientTape() as tape:
         # find loss for all three outputs and average it to find total loss
+        # get logits from model by invoking the call function of distilBert
         (start_pos_logits, end_pos_logits, answer_type_logits) = distilBert(
             (input_ids, input_masks, segment_ids), training=True
         )
