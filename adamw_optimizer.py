@@ -55,25 +55,19 @@ class DecoupledWeightDecayExtension(object):
             **kwargs: Optional list or tuple or set of `Variable` objects to
                 decay.
         """
-        wd = kwargs.pop('weight_decay', weight_decay)
+        wd = kwargs.pop("weight_decay", weight_decay)
         super(DecoupledWeightDecayExtension, self).__init__(**kwargs)
         self._decay_var_list = None  # is set in minimize or apply_gradients
-        self._set_hyper('weight_decay', wd)
+        self._set_hyper("weight_decay", wd)
 
     def get_config(self):
         config = super(DecoupledWeightDecayExtension, self).get_config()
-        config.update({
-            'weight_decay':
-                self._serialize_hyperparameter('weight_decay'),
-        })
+        config.update(
+            {"weight_decay": self._serialize_hyperparameter("weight_decay"),}
+        )
         return config
 
-    def minimize(self,
-                 loss,
-                 var_list,
-                 grad_loss=None,
-                 name=None,
-                 decay_var_list=None):
+    def minimize(self, loss, var_list, grad_loss=None, name=None, decay_var_list=None):
         """Minimize `loss` by updating `var_list`.
         This method simply computes gradient using `tf.GradientTape` and calls
         `apply_gradients()`. If you want to process the gradient before
@@ -101,7 +95,8 @@ class DecoupledWeightDecayExtension(object):
         """
         self._decay_var_list = set(decay_var_list) if decay_var_list else False
         return super(DecoupledWeightDecayExtension, self).minimize(
-            loss, var_list=var_list, grad_loss=grad_loss, name=name)
+            loss, var_list=var_list, grad_loss=grad_loss, name=name
+        )
 
     def apply_gradients(self, grads_and_vars, name=None, decay_var_list=None):
         """Apply gradients to variables.
@@ -123,24 +118,25 @@ class DecoupledWeightDecayExtension(object):
         """
         self._decay_var_list = set(decay_var_list) if decay_var_list else False
         return super(DecoupledWeightDecayExtension, self).apply_gradients(
-            grads_and_vars, name=name)
+            grads_and_vars, name=name
+        )
 
     def _decayed_weights(self, lr_t, var_dtype):
 
-        decayed_weights = self._get_hyper('weight_decay', var_dtype) * lr_t
+        decayed_weights = self._get_hyper("weight_decay", var_dtype) * lr_t
 
         return decayed_weights
 
     def _decay_weights_op(self, var, lr_t):
         if not self._decay_var_list or var in self._decay_var_list:
-            return var.assign_sub(self._decayed_weights(lr_t, var.dtype) * var,
-                                  self._use_locking)
+            return var.assign_sub(
+                self._decayed_weights(lr_t, var.dtype) * var, self._use_locking
+            )
         return tf.no_op()
 
     def _decay_weights_sparse_op(self, var, indices, lr_t):
         if not self._decay_var_list or var in self._decay_var_list:
-            update = (-self._decayed_weights(lr_t, var.dtype) * tf.gather(
-                var, indices))
+            update = -self._decayed_weights(lr_t, var.dtype) * tf.gather(var, indices)
             return self._resource_scatter_add(var, indices, update)
         return tf.no_op()
 
@@ -150,23 +146,29 @@ class DecoupledWeightDecayExtension(object):
     def _resource_apply_dense(self, grad, var, apply_state=None):
 
         var_device, var_dtype = var.device, var.dtype.base_dtype
-        coefficients = ((apply_state or {}).get((var_device, var_dtype))
-                        or self._fallback_apply_state(var_device, var_dtype))
+        coefficients = (apply_state or {}).get(
+            (var_device, var_dtype)
+        ) or self._fallback_apply_state(var_device, var_dtype)
 
-        with tf.control_dependencies([self._decay_weights_op(var, coefficients['lr_t'])]):
-            return super(DecoupledWeightDecayExtension,
-                         self)._resource_apply_dense(grad, var, apply_state=apply_state)
+        with tf.control_dependencies(
+            [self._decay_weights_op(var, coefficients["lr_t"])]
+        ):
+            return super(DecoupledWeightDecayExtension, self)._resource_apply_dense(
+                grad, var, apply_state=apply_state
+            )
 
     def _resource_apply_sparse(self, grad, var, indices, apply_state=None):
 
         var_device, var_dtype = var.device, var.dtype.base_dtype
-        coefficients = ((apply_state or {}).get((var_device, var_dtype))
-                        or self._fallback_apply_state(var_device, var_dtype))
+        coefficients = (apply_state or {}).get(
+            (var_device, var_dtype)
+        ) or self._fallback_apply_state(var_device, var_dtype)
 
-        decay_op = self._decay_weights_sparse_op(var, indices, coefficients['lr_t'])
+        decay_op = self._decay_weights_sparse_op(var, indices, coefficients["lr_t"])
         with tf.control_dependencies([decay_op]):
-            return super(DecoupledWeightDecayExtension,
-                         self)._resource_apply_sparse(grad, var, indices, apply_state=apply_state)
+            return super(DecoupledWeightDecayExtension, self)._resource_apply_sparse(
+                grad, var, indices, apply_state=apply_state
+            )
 
 
 class AdamW(DecoupledWeightDecayExtension, tf.keras.optimizers.Adam):
@@ -200,16 +202,18 @@ class AdamW(DecoupledWeightDecayExtension, tf.keras.optimizers.Adam):
     ```
     """
 
-    def __init__(self,
-                 weight_decay,
-                 learning_rate=0.001,
-                 beta_1=0.9,
-                 beta_2=0.999,
-                 epsilon=1e-07,
-                 amsgrad=False,
-                 name="AdamW",
-                 decay_var_list=None,
-                 **kwargs):
+    def __init__(
+        self,
+        weight_decay,
+        learning_rate=0.001,
+        beta_1=0.9,
+        beta_2=0.999,
+        epsilon=1e-07,
+        amsgrad=False,
+        name="AdamW",
+        decay_var_list=None,
+        **kwargs
+    ):
         """Construct a new AdamW optimizer.
         For further information see the documentation of the Adam Optimizer.
         Args:
@@ -244,22 +248,31 @@ class AdamW(DecoupledWeightDecayExtension, tf.keras.optimizers.Adam):
             epsilon=epsilon,
             amsgrad=amsgrad,
             name=name,
-            **kwargs)
+            **kwargs
+        )
+
 
 class CustomSchedule(tf.keras.optimizers.schedules.PolynomialDecay):
-
-    def __init__(self,
-                 initial_learning_rate,
-                 decay_steps,
-                 end_learning_rate=0.0001,
-                 power=1.0,
-                 cycle=False,
-                 name=None,
-                 num_warmup_steps=1000):
+    def __init__(
+        self,
+        initial_learning_rate,
+        decay_steps,
+        end_learning_rate=0.0001,
+        power=1.0,
+        cycle=False,
+        name=None,
+        num_warmup_steps=1000,
+    ):
         # Since we have a custom __call__() method, we pass cycle=False when calling `super().__init__()` and
         # in self.__call__(), we simply do `step = step % self.decay_steps` to have cyclic behavior.
-        super(CustomSchedule, self).__init__(initial_learning_rate, decay_steps, end_learning_rate, power, cycle=False,
-                                             name=name)
+        super(CustomSchedule, self).__init__(
+            initial_learning_rate,
+            decay_steps,
+            end_learning_rate,
+            power,
+            cycle=False,
+            name=name,
+        )
 
         self.num_warmup_steps = num_warmup_steps
 
@@ -270,7 +283,11 @@ class CustomSchedule(tf.keras.optimizers.schedules.PolynomialDecay):
         """
 
         # For cyclic behavior
-        step = tf.cond(self.cycle and step >= self.decay_steps, lambda: step % self.decay_steps, lambda: step)
+        step = tf.cond(
+            self.cycle and step >= self.decay_steps,
+            lambda: step % self.decay_steps,
+            lambda: step,
+        )
 
         learning_rate = super(CustomSchedule, self).__call__(step)
 
@@ -297,6 +314,8 @@ class CustomSchedule(tf.keras.optimizers.schedules.PolynomialDecay):
             warmup_learning_rate = self.initial_learning_rate * warmup_percent_done
 
             is_warmup = tf.cast(steps_int < warmup_steps_int, tf.float32)
-            learning_rate = ((1.0 - is_warmup) * learning_rate + is_warmup * warmup_learning_rate)
+            learning_rate = (
+                1.0 - is_warmup
+            ) * learning_rate + is_warmup * warmup_learning_rate
 
         return learning_rate

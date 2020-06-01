@@ -1,8 +1,9 @@
 # -----------------------------------------------------------------------------------------------------------------------------------------------
-# This code is all my own. I have used Google's formats for doc strings and formatting. I have left the commented versions of
-# some approaches I tried that didn't work as well to give more of an insight into my process. Mostly, I have experimented
-# with the optimizers, batch size, learning rate and training set size. I had to be selective in my parameter tuning here due
-# to resource constraints. If you can't make sense of anything, feel free to reach me at sr2259@cornell.edu!
+# I have used Google's formats for doc strings and formatting. I have left the commented versions of
+# some approaches I tried that didn't work as well to give more of an insight into my process.
+# Mostly, I have experimented with the optimizers, batch size, learning rate and training set size.
+# I had to be selective in my parameter tuning here due to resource constraints.
+# If you can't make sense of something, feel free to reach me at sr2259@cornell.edu
 # -----------------------------------------------------------------------------------------------------------------------------------------------
 
 
@@ -15,7 +16,7 @@ from transformers import (
     TFDistilBertPreTrainedModel,
     TFDistilBertMainLayer,
     DistilBertTokenizer,
-    TFDistilBertModel
+    TFDistilBertModel,
 )
 import tensorflow as tf
 from absl import flags
@@ -23,7 +24,6 @@ from absl import app
 import time
 
 model_name = "distilbert-base-uncased-distilled-squad"
-len_train = 494670
 
 # -----------------------------------------------------------------------------------------------------------------------
 # FLAGS
@@ -35,13 +35,19 @@ flags.DEFINE_bool(
     "training_mode", False, "Do you want to train the model or generate predictions?"
 )
 
+flags.DEFINE_bool("clipped", False, "Use entire training set or clip it?")
+
+flags.DEFINE_integer("len_train", 494670, "How many training batches to use?")
+
 flags.DEFINE_bool(
     "use_chkpt", True, "Do you want to use a checkpoint or train from scratch?"
 )
 
 flags.DEFINE_string("train_file", None, "TF record file to generate train-dataset from")
 
-flags.DEFINE_string("val_file", None, "TF record file to generate validation(dev)-dataset from")
+flags.DEFINE_string(
+    "val_file", None, "TF record file to generate validation(dev)-dataset from"
+)
 
 flags.DEFINE_string(
     "checkpoint_path",
@@ -56,7 +62,7 @@ flags.DEFINE_string(
 flags.DEFINE_string(
     "pred_file",
     None,
-    "jsonl.gz file where validations are stored, with-or-without annotations"
+    "jsonl.gz file where validations are stored, with-or-without annotations",
 )
 
 flags.DEFINE_integer("epochs", 2, "number of epochs")
@@ -79,6 +85,7 @@ answer_types = 5
 # -----------------------------------------------------------------------------------------------------------------------
 # Read Data
 # -----------------------------------------------------------------------------------------------------------------------
+
 
 def decode_record(record, x):
     """Decodes a record to a TensorFlow example."""
@@ -110,7 +117,6 @@ def read_train_record(tf_record_file, shuffle_buffer_size, batch_size=1):
         return (
             {
                 # FEATURES
-
                 # unique_ids for every example
                 "unique_ids": record["unique_ids"],
                 # input_ids corresponding to tokens in the vocabulary
@@ -122,7 +128,6 @@ def read_train_record(tf_record_file, shuffle_buffer_size, batch_size=1):
             },
             {
                 # LABELS
-
                 # position of answer start token
                 "start_positions": record["start_positions"],
                 # position of answer end token
@@ -151,7 +156,7 @@ def read_train_record(tf_record_file, shuffle_buffer_size, batch_size=1):
     dataset = (
         dataset.shuffle(shuffle_buffer_size) if shuffle_buffer_size != 0 else dataset
     )
-    # create batches
+    # create batches of size batch size
     dataset = dataset.batch(batch_size) if batch_size != 0 else dataset
     #  map dataset to features dictionary for ease of access
     dataset = dataset.map(x_map)
@@ -174,7 +179,6 @@ def read_val_record(tf_record_file, shuffle_buffer_size, batch_size=1):
     def x_map(record):
         return {
             # FEATURES
-
             # unique_ids for every example
             "unique_ids": record["unique_ids"],
             # input_ids corresponding to tokens in the vocabulary
@@ -204,16 +208,18 @@ def read_val_record(tf_record_file, shuffle_buffer_size, batch_size=1):
     dataset = (
         dataset.shuffle(shuffle_buffer_size) if shuffle_buffer_size != 0 else dataset
     )
-    # create batches
+    # create batches of size batch size
     dataset = dataset.batch(batch_size) if batch_size != 0 else dataset
     #  map dataset to features dictionary for ease of access
     dataset = dataset.map(x_map)
 
     return dataset
 
+
 # -----------------------------------------------------------------------------------------------------------------------
 # Define Model
 # -----------------------------------------------------------------------------------------------------------------------
+
 
 class TFNQModel(TFDistilBertPreTrainedModel):
     def __init__(self, config, *inputs, **kwargs):
@@ -283,9 +289,11 @@ class TFNQModel(TFDistilBertPreTrainedModel):
 
         return outputs
 
+
 # -----------------------------------------------------------------------------------------------------------------------
 # Initialize Metrics and Optimizer
 # -----------------------------------------------------------------------------------------------------------------------
+
 
 def initialize_acc():
     """Initialize accuracy metrics using Sparse TopK categorical accuracy"""
@@ -308,24 +316,29 @@ def create_optimizer(distilBert):
     # -----------------------------------------------------------------------------------------------------------------------------------------------
 
     # AdamW optimizer, slightly similar to what Google uses from tensorflow-addons library
-    #     return tfa.optimizers.AdamW(weight_decay=FLAGS.init_weight_decay_rate, learning_rate=FLAGS.init_learning_rate, beta_1=0.9, beta_2=0.999,
-    #                       epsilon=1e-6)
+    #     return tfa.optimizers.AdamW(weight_decay=FLAGS.init_weight_decay_rate,
+    #                                       learning_rate=FLAGS.init_learning_rate,
+    #                                   beta_1=0.9, beta_2=0.999,
+    #                                   epsilon=1e-6)
 
     # -----------------------------------------------------------------------------------------------------------------------------------------------
 
-    #However, this doesn't cover learning-rate schedules, so I used a modification based on Yin dar shieh's version on kaggle
-    decay_steps = int(FLAGS.epochs * len_train / FLAGS.batch_size)
+    # However, this doesn't cover learning-rate schedules, so I used a modification based on Yin dar shieh's version
+    # on kaggle
+    decay_steps = int(FLAGS.epochs * FLAGS.len_train / FLAGS.batch_size)
 
     # custom learning rate schedulers with warmup-steps and decay
-    schedule = CustomSchedule(
-        initial_learning_rate=FLAGS.init_learning_rate,
-        decay_steps=decay_steps,
-        end_learning_rate=FLAGS.init_learning_rate,
-        power=1.0,
-        cycle=True,
-        num_warmup_steps=0,
-    )
+    # source adam_optimizer.py
+    # schedule = CustomSchedule(
+    #     initial_learning_rate=FLAGS.init_learning_rate,
+    #     decay_steps=decay_steps,
+    #     end_learning_rate=FLAGS.init_learning_rate,
+    #     power=1.0,
+    #     cycle=True,
+    #     num_warmup_steps=0,
+    # )
     # I also tried a simple Polynomial Decay schedule, without warmup
+    # source page https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/schedules/PolynomialDecay
     # schedule = PolynomialDecay(
     #     FLAGS.init_learning_rate,
     #     decay_steps,
@@ -344,6 +357,7 @@ def create_optimizer(distilBert):
     #         decay_var_list.append(name)
 
     # Modified AdamW optimizer, with learning rate schedule and warmup
+    # source adam_optimizer.py
     # return AdamW(
     #     weight_decay=FLAGS.init_weight_decay_rate,
     #     learning_rate=schedule,
@@ -355,14 +369,19 @@ def create_optimizer(distilBert):
 
     # -----------------------------------------------------------------------------------------------------------------------------------------------
 
-    # eventually, I found a huggingface implementation that  does pretty much what I was trying to implement above.
-    # AdamW optimizer with a polynomial  decay learning rate scheduler, with warm-up, excluding "LayerNorm", "layer_norm", "bias" layers
-    return co(FLAGS.init_learning_rate, decay_steps, 1000, end_lr=0.0, optimizer_type='adamw')
+    # eventually, I found a huggingface implementation that does pretty much what I was trying to implement above.
+    # AdamW optimizer with a polynomial decay learning rate scheduler, with warm-up,
+    # excluding "LayerNorm", "layer_norm", "bias" layers
+    # source code https://huggingface.co/transformers/main_classes/optimizer_schedules.html
+    return co(
+        FLAGS.init_learning_rate, decay_steps, 1000, end_lr=0.0, optimizer_type="adamw"
+    )
 
     # -----------------------------------------------------------------------------------------------------------------------------------------------
 
     # LAMB optimizer, known for training BERT super fast (find it at https://arxiv.org/abs/1904.00962 )
     # Another optimizer, that is a modified version of AdamW specifically for BERT
+    # source page https://www.tensorflow.org/addons/api_docs/python/tfa/optimizers/LAMB
     # return tfa.optimizers.LAMB(
     #     learning_rate=schedule,
     #     beta_1=0.9,
@@ -375,9 +394,11 @@ def create_optimizer(distilBert):
 
     # -----------------------------------------------------------------------------------------------------------------------------------------------
 
+
 # -----------------------------------------------------------------------------------------------------------------------
 # Find loss and gradients
 # -----------------------------------------------------------------------------------------------------------------------
+
 
 def compute_loss(labels, logits, depth):
     """
@@ -394,17 +415,18 @@ def compute_loss(labels, logits, depth):
 
     # Implemented the way google defines loss in their bert-joint-baseline paper
     # For more information, check out model part of paper
-    #convert labels to one hot
+    # convert labels to one hot
     one_hot_labels = tf.one_hot(labels, depth=depth, dtype=tf.float32)
-    #find log probability of logits
+    # find log probability of logits
     log_probs = tf.nn.log_softmax(logits, axis=-1)
-    #find loss by comparing labels and logit-probs
+    # find loss by comparing labels and logit-probs
     loss = -tf.reduce_mean(tf.reduce_sum(one_hot_labels * log_probs, axis=-1))
 
     # using sparse categorical cross entropy
     # loss_sparse_cat = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
     # loss = tf.math.reduce_sum(loss_sparse_cat(positions, logits))
     return loss
+
 
 def compute_gradient(
     distilBert,
@@ -437,7 +459,9 @@ def compute_gradient(
         )
         loss_start_pos = compute_loss(start_pos_labels, start_pos_logits, 512)
         loss_end_pos = compute_loss(end_pos_labels, end_pos_logits, 512)
-        loss_ans_type = compute_loss(answer_type_labels, answer_type_logits, answer_types)
+        loss_ans_type = compute_loss(
+            answer_type_labels, answer_type_logits, answer_types
+        )
         total_loss = (loss_start_pos + loss_end_pos + loss_ans_type) / 3.0
 
     # compute gradient based on loss using auto differentiation
@@ -468,9 +492,11 @@ def checkpt(distilBert, checkpoint_path):
         print("No checkpoint found")
     return ckpt_manager
 
+
 # -----------------------------------------------------------------------------------------------------------------------
 # Train model
 # -----------------------------------------------------------------------------------------------------------------------
+
 
 def train(
     distilBert,
@@ -492,7 +518,7 @@ def train(
          ckpt_manager: checkpoint manager to store or read checkpoints
          (train_acc, train_acc_start_pos, train_acc_end_pos, train_acc_ans_type): accuracy metrics
 
-    Returns: nothing but stores checkpoints as the training goes on
+    Returns: None but stores checkpoints as the training goes on
     """
     for epoch in range(FLAGS.epochs):
         # reset metrics at every epoch
@@ -502,7 +528,7 @@ def train(
         train_acc_ans_type.reset_states()
 
         for (instance, (x, y)) in enumerate(train_dataset):
-            if instance == len_train:
+            if FLAGS.clipped and instance == FLAGS.len_train:
                 break
             # generate x and y
             input_ids, input_masks, segment_ids = (
@@ -543,14 +569,12 @@ def train(
             ) = acc
 
             if (instance + 1) % 1 == 0:
-                print(
-                    "Epoch {}, Instances processed {}".format(epoch + 1, instance + 1,)
-                )
+                print("Epoch {}, Batches processed {}".format(epoch + 1, instance + 1,))
 
-                print("Overall acc = {:.6f}".format(train_acc.result()))
-                print("Start Token acc = {:.6f}".format(train_acc_start_pos.result()))
-                print("End Token acc = {:.6f}".format(train_acc_end_pos.result()))
-                print("Answer Type acc = {:.6f}".format(train_acc_ans_type.result()))
+                print("Overall acc = {:.4f}".format(train_acc.result()))
+                print("Start Token acc = {:.4f}".format(train_acc_start_pos.result()))
+                print("End Token acc = {:.4f}".format(train_acc_end_pos.result()))
+                print("Answer Type acc = {:.4f}".format(train_acc_ans_type.result()))
 
                 print("-" * 100)
 
@@ -561,15 +585,16 @@ def train(
                 )
             )
 
-            print("Overall: loss = acc = {.6f}".format(train_acc.result()))
-            print("Start Token: acc = {.6f}".format(train_acc_start_pos.result()))
-            print("End Token: acc = {.6f}".format(train_acc_end_pos.result()))
-            print("Answer Type: acc = {.6f}".format(train_acc_ans_type.result()))
+            print("Overall: loss = acc = {:.4f}".format(train_acc.result()))
+            print("Start Token: acc = {:.4f}".format(train_acc_start_pos.result()))
+            print("End Token: acc = {:.4f}".format(train_acc_end_pos.result()))
+            print("Answer Type: acc = {:.4f}".format(train_acc_ans_type.result()))
 
 
 # -----------------------------------------------------------------------------------------------------------------------
 # Main function
 # -----------------------------------------------------------------------------------------------------------------------
+
 
 def main(argv):
     # retrieve datasets
@@ -583,9 +608,7 @@ def main(argv):
         )
     print("data retrieved")
     # retrieve pretrained model and tokenizer
-    tokenizer = DistilBertTokenizer.from_pretrained(
-        model_name
-    )
+    tokenizer = DistilBertTokenizer.from_pretrained(model_name)
     distilBert = TFNQModel.from_pretrained(model_name)
     print("Model created")
     if FLAGS.training_mode:

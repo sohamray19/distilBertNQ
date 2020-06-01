@@ -14,7 +14,7 @@ You will need:
 * gsutils
 * tensorflow addons
 ```
-pip install -r requirements.txt
+pip install -r requirements_data_gen.txt
 ```
 ### Getting the data
 To get the preprocessed training set, and vocabulary from Google's bert-joint-baseline, run these commands
@@ -30,53 +30,81 @@ gsutil -m cp -R gs://natural_questions/v1.0/dev .
 ```
 To generate the validation data record, run this command
 ```
-python -m generate_validation.py --logtostderr \
---vocab_file=/Users/aashnabanerjee/Documents/Cortx/inference/code/bert-joint-baseline/vocab-nq.txt \
---output_dir=/Users/aashnabanerjee/Documents/Cortx/inference/code/ \
---predict_file=/Users/aashnabanerjee/Documents/Cortx/inference/code/bert-joint-baseline/dev/nq-dev-??.jsonl.gz
-```
-```
-python -m generate_validation.py --logtostderr \
+python -m generate_validation \
+--logtostderr \
 --vocab_file=/path/to/vocab-nq.txt \
 --output_dir=/path/to/output/directory/ \
 --predict_file=path/to/validation/file/pattern
 ```
+For example,
+```
+python -m generate_validation \
+--logtostderr \
+--vocab_file=./vocab-nq.txt \
+--output_dir=./ \
+--predict_file=./dev/nq-dev-??.jsonl.gz
+```
+Note: Check that your tf_record file is greater than 0 bytes to make sure that the correct dev file was found
 
 ## Training
 To train the model, run this command
 ```
-pip install tensorflow==2.2.0
+pip install -r requirements_run.txt
 ```
 then this
 ```
-python run_distilbert.py --training_mode=True --train_file=/path/to/train-file \
---use_chkpt=False --checkpoint_path=/path/to/store/checkpoint/ --epochs=2 --batch_size=2\
---init_learning_rate=3e-5 --init_weight_decay_rate=0.01
+python run_distilbert.py \
+--training_mode=True \
+--train_file=/path/to/train-file \
+--use_chkpt=False \
+--checkpoint_path=/path/to/store/checkpoint/ \
+--epochs= epochs \
+--batch_size= batch size \
+--init_learning_rate=initial learning rate \
+--init_weight_decay_rate= initial weight decay rate \
+--clipped=True \
+--len_train=length of training dataset you want to use
 ```
 For example, 
 ```
-python run_distilbert.py --training_mode=True --train_file=./train.tf_record \
---use_chkpt=False --checkpoint_path=./checkpoints/ --epochs=2 --batch_size=2\
---init_learning_rate=3e-5 --init_weight_decay_rate=0.01
+python run_distilbert.py \
+--training_mode=True \
+--train_file=./nq-train.tfrecords-00000-of-00001 \
+--use_chkpt=False \
+--checkpoint_path=./checkpoints/ \
+--epochs=2 \
+--batch_size=2 \
+--init_learning_rate=3e-5 \
+--init_weight_decay_rate=0.01 \
+--clipped=True \
+--len_train=1
 ```
-
 Note: To resolve any OOM or resource exhaustion errors try reducing batch-size
+
 ## Validation
 To generate the validation predictions in a predictions.json file, run this  command
 ```
-python run_distilbert.py --training_mode=False --val_file=/path/to/val-record \
---use_chkpt=True --checkpoint_path=/path/to/stored/checkpoint/ --pred_file=path/to/dev/json/file \
---json-output-path=/path/to/store/predictions.json --batch_size=2
+python run_distilbert.py \
+--training_mode=False \
+--val_file=/path/to/val-record \
+--use_chkpt=True \
+--checkpoint_path=/path/to/stored/checkpoint/ \
+--pred_file=path/to/dev/json/file \
+--json-output-path=/path/to/store/predictions.json \
+--batch_size= batch size
 ```
 For example, 
 ```
-python run_distilbert.py --training_mode=False \
---val_file=./dev.tf_record \
---use_chkpt=False --checkpoint_path=./checkpoints/ \
---batch_size=2 --pred_file=./nq-dev-sample.jsonl.gz \
---json_output_path=./
+python run_distilbert.py \
+--training_mode=False \
+--val_file=./eval_withlabels.tf_record \
+--checkpoint_path=./checkpoints/ \
+--pred_file=./dev/nq-dev-??.jsonl.gz \
+--json_output_path=./predictions.json \
+--batch_size=2
 ```
-Note: Pred-file is usually just the val file before it was converted into a tf_record
+Note: Pred-file is usually just the val file before it was converted into a tf_record.
+Note: To resolve any OOM or resource exhaustion errors try reducing batch-size
 
 ## Evaluation
 For evaluation, first you will need to download the evaluation script from [here](https://ai.google.com/research/NaturalQuestions/download).
@@ -98,6 +126,11 @@ If the model is fully trained, this should give a score similar to:
  "short-recall-at-precision>=0.75": 0.16, "short-precision-at-precision>=0.75": 0.75, 
  "short-recall-at-precision>=0.9": 0.04, "short-precision-at-precision>=0.9": 1.0}
 ```
+
+## Testing
+This process will be the same as validation. If you have 2 files, one with annotations and one without,
+pass the one with annotations to nq_eval program and the one without as the pred-file to the generate_validations program.
+
 ## Model Description and Architectural Decisions
 * Literature Review: Before I get into model description, here are the papers I referenced to make my architectural decisions: 
     * [LAMB](https://arxiv.org/abs/1904.00962.pdf)
@@ -114,6 +147,7 @@ I started multiple processes, on small parts of the dataset, and continued with 
 Then, I did an ablation study by starting with the best suggested optimizer using weight decay and a scheduler 
 and then removed them one by one to observe the impact it made. This helped me find the optimal optimizer configuration.
 I also experimented with different loss functions and have presented my results in the excel sheet referenced below in the hyperparameter tuning section.
+To minimize expenditure, I used Google colab for the most part, and paperspace only at the very end.
 * **Data**: I have used the preprocessed training dataset provided in the bert-joint-baseline model. I have also written a script to generate
 the validation set in a similar fashion. Not only does the smaller size make the data easier to deal with, but also 
 it evens out the number of instances with NULL values, as well as adds the special tokens for where the answers are most often found.
@@ -132,7 +166,9 @@ For more information, please refer to the LAMB paper sited above.
 I am attaching an excel file [here](https://docs.google.com/spreadsheets/d/1zbUUo1AZ3lSKmf6uOprpUxFrqU7zJGqbrNLiNW-782o/edit?usp=sharing) 
 which represents my process of hyperparameter tuning, with results. With more time (or with better hardware), I would love to run 
 Bayesian Optimisation or random search on the parameters to improve performance.
-## Potential Improvements to Performance with time
+Note: I am still trying some hyperparameter combinations, but submitted early as I don't see any significant change coming.
+In the case where there is, I will update the excel sheet.
+## Potential improvements to performance with time
 * I would love to go deeper into Deep learning techniques, including gradient and batch accumulation, and
 other optimizations functions. I wold try to tweak these methods to perform best with our dataset.
 * I would try out different architectures on top of distilbert and other transformer models, especially RoBERTa and BERT large, since with this much
@@ -143,7 +179,8 @@ and optimizer configurations to observe their effect on f1-score.
 insights.
 * I would try to minimize re-allocations in my code to speed up operation
 * I would learn and experiment with distributed training techniques.
-## Potential Improvements to Performance with hardware 
+
+## Potential improvements to performance with hardware
 * Gradient Accumulation. I tried doing it with my current code but couldn't get around the resource exhaustion(OOM) error. Additionally, it makes more sense to use gradient accumulation with multiple GPU's.
 * With better hardware, I would have more time, allowing me to try out different combinations of hyperparameters
 and transformers models.
@@ -153,18 +190,18 @@ and transformers models.
 * I would try an ensemble-based approach
 
 ## Feedback
-As someone attempting a question answering task for the first time, I enjoyed learning and working on this challenging task. Ample time and resources were provided, and the 
-charity donation was a cherry on top!
+As someone attempting a question answering task for the first time, I enjoyed learning and working on this challenging task. Prompt replies, ample time and resources were provided, and the 
+charity donation was a cherry on top! 
 
 Potentially, I would consider providing lesser time and a starter code, so that the candidate can focus
 more on the architectural decisions, and preprocessing change, if any, without spending too much time on reading and understanding
 basic (albeit necessary) preprocessing and prediction generation code.
 
-Overall, having never worked on data as large as this before, I loved the assignment, 
-and I believe that I learned a lot from it!
+Overall, having never worked on data of this scale before, or question answering, I loved the assignment,
+and I believe that I learned a lot from it! For someone at the start of their career, that's what I'm looking to do!
 
 
-## Charity Organisation of choice
+## Charity organisation of choice
 My hometown in India has been hit with the worst cyclone in decades. I would love to think that I was 
-able to provide any little assistance. Additionally, I believe USD will be able to make more of an impact in India. 
-Donate here (if the code works! :pray ).  
+able to provide any little assistance. Additionally, I believe US dollars will be able to make more of an impact in India. 
+Donate here!
