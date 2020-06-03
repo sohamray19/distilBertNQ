@@ -107,6 +107,7 @@ python run_distilbert.py \
 --len_train=100000
 ```
 **Note**: The command above will train on 100000 samples. To train on entire dataset, set --clipped=False 
+
 **Note**: To resolve any OOM or resource exhaustion errors try reducing batch-size
 
 ## Validation
@@ -132,6 +133,7 @@ python run_distilbert.py \
 --batch_size=2
 ```
 **Note**: Pred-file is usually just the val file before it was converted into a tf_record.
+
 **Note**: To resolve any OOM or resource exhaustion errors try reducing batch-size
 
 ## Evaluation
