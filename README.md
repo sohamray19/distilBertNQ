@@ -104,7 +104,7 @@ python run_distilbert.py \
 --init_learning_rate=3e-5 \
 --init_weight_decay_rate=0.01 \
 --clipped=True \
---len_train=1
+--len_train=100000
 ```
 **Note**: To resolve any OOM or resource exhaustion errors try reducing batch-size
 
