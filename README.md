@@ -4,17 +4,30 @@ Question Answering performed on Google's Natural Questions dataset using Hugging
 DistilBert Transformer
 
 ## Results
-Best score:
-* **F1-score** = 58
-* **Precision** =
-* **Recall** =
+Best combined score:
+* **F1-score** = Long: 58, Short: 49
+* **Precision** = Long: 62, Short: 49
+* **Recall** = Long: 46, Short: 50
+
+Best Long Answer score: 
+* **F1-score** = 60
+* **Precision** = 64
+* **Recall** = 56
+
+Best Short Answer Score: 
+* **F1-score** = 49
+* **Precision** = 49
+* **Recall** = 50
 
 Winning hyperparameter setting is highlighted in the excel sheet attached below (see hyperparameter tuning section).
+**Note**: I have considered "best-threshold" values from the evaluation script output for the F1-score, 
+precision and recall
 
 ## Getting Started
  * Clone this repository to get started. 
- * Make sure you have python 3 installed.
+ * Make sure you have **python 3.7** installed.
  If not installed already, follow the instructions on  [Anaconda](https://docs.anaconda.com/anaconda/install/mac-os/) website
+
 ### Prerequisites
 You will need:  
 * Huggingface's transformers library
@@ -26,7 +39,7 @@ pip install -r requirements_data_gen.txt
 ```
 Tensorflow 2.0 should automatically start using the gpu if cuda and cudnn are installed.
 Here are some links that might help with troubleshooting:
-[1](https://www.tensorflow.org/install/gpu), [2](https://www.tensorflow.org/guide/gpu)  
+[1](https://www.tensorflow.org/install/gpu), [2](https://www.tensorflow.org/guide/gpu)
 Note: If a TensorFlow operation has both CPU and GPU implementations, by default the GPU devices will be given priority when the operation is assigned to a device.
 
 ### Getting the data
@@ -57,7 +70,7 @@ python -m generate_validation \
 --output_dir=./ \
 --predict_file=./dev/nq-dev-??.jsonl.gz
 ```
-Note: Check that your tf_record file is greater than 0 bytes to make sure that the correct dev file was found
+**Note**: Check that your tf_record file is greater than 0 bytes to make sure that the correct dev file was found
 
 ## Training
 To train the model, run this command
@@ -92,7 +105,7 @@ python run_distilbert.py \
 --clipped=True \
 --len_train=1
 ```
-Note: To resolve any OOM or resource exhaustion errors try reducing batch-size
+**Note**: To resolve any OOM or resource exhaustion errors try reducing batch-size
 
 ## Validation
 To generate the validation predictions in a predictions.json file, run this  command
@@ -110,34 +123,39 @@ For example,
 ```
 python run_distilbert.py \
 --training_mode=False \
---val_file=./eval_withlabels.tf_record \
+--val_file=./eval.tf_record \
 --checkpoint_path=./checkpoints/ \
 --pred_file=./dev/nq-dev-??.jsonl.gz \
 --json_output_path=./predictions.json \
 --batch_size=2
 ```
-Note: Pred-file is usually just the val file before it was converted into a tf_record.
-Note: To resolve any OOM or resource exhaustion errors try reducing batch-size
+**Note**: Pred-file is usually just the val file before it was converted into a tf_record.
+**Note**: To resolve any OOM or resource exhaustion errors try reducing batch-size
 
 ## Evaluation
 For evaluation, first you will need to download the evaluation script from [here](https://ai.google.com/research/NaturalQuestions/download).
+I have also included it in the git repo.
 Run it with this command:
 ```
-!python -m nq_eval --gold_path=/path/to/validation-jsonl.gz --predictions_path=/path/to/predictions.json --logtostderr
+python -m nq_eval --gold_path=/path/to/validation-jsonl.gz --predictions_path=/path/to/predictions.json --logtostderr
+```
+For example,
+```
+python -m nq_eval --gold_path=./dev/nq-dev-??.jsonl.gz --predictions_path=./predictions.json --logtostderr
 ```
 
 If the model is fully trained, this should give a score similar to: 
 ```json
-{"long-best-threshold-f1": 0.6041666666666666, "long-best-threshold-precision": 0.651685393258427,
- "long-best-threshold-recall": 0.5631067961165048, "long-best-threshold": 7.45175576210022,
- "long-recall-at-precision>=0.5": 0.6504854368932039, "long-precision-at-precision>=0.5": 0.5153846153846153,
- "long-recall-at-precision>=0.75": 0.30097087378640774, "long-precision-at-precision>=0.75": 0.7560975609756098,
- "long-recall-at-precision>=0.9": 0.02912621359223301, "long-precision-at-precision>=0.9": 1.0, 
- "short-best-threshold-f1": 0.4722222222222222, "short-best-threshold-precision": 0.4927536231884058, 
- "short-best-threshold-recall": 0.4533333333333333, "short-best-threshold": 8.397958993911743, 
- "short-recall-at-precision>=0.5": 0.44, "short-precision-at-precision>=0.5": 0.5, 
- "short-recall-at-precision>=0.75": 0.16, "short-precision-at-precision>=0.75": 0.75, 
- "short-recall-at-precision>=0.9": 0.04, "short-precision-at-precision>=0.9": 1.0}
+{"long-best-threshold-f1": 0.5803108808290156, "long-best-threshold-precision": 0.6222222222222222,
+"long-best-threshold-recall": 0.5436893203883495, "long-best-threshold": 6.31158971786499,
+"long-recall-at-precision>=0.5": 0.6504854368932039, "long-precision-at-precision>=0.5": 0.5037593984962406,
+"long-recall-at-precision>=0.75": 0.34951456310679613, "long-precision-at-precision>=0.75": 0.75,
+"long-recall-at-precision>=0.9": 0.009708737864077669, "long-precision-at-precision>=0.9": 1.0,
+"short-best-threshold-f1": 0.4729729729729729, "short-best-threshold-precision": 0.4794520547945205,
+"short-best-threshold-recall": 0.4666666666666667, "short-best-threshold": 6.9500908851623535,
+"short-recall-at-precision>=0.5": 0.37333333333333335, "short-precision-at-precision>=0.5": 0.5185185185185185,
+"short-recall-at-precision>=0.75": 0, "short-precision-at-precision>=0.75": 0, "short-recall-at-precision>=0.9": 0,
+"short-precision-at-precision>=0.9": 0}
 ```
 
 ## Testing
@@ -145,7 +163,7 @@ This process will be the same as validation. If you have 2 files, one with annot
 pass the one with annotations to nq_eval program and the one without as the pred-file to the generate_validations program.
 
 ## Model Description and Architectural Decisions
-* Literature Review: Before I get into model description, here are the papers I referenced to make my architectural decisions: 
+* **Literature Review**: Before I get into model description, here are the papers I referenced to make my architectural decisions: 
     * [LAMB](https://arxiv.org/abs/1904.00962.pdf)
     * [BERT-Baseline](https://arxiv.org/pdf/1901.08634.pdf)
     * [BERT](https://arxiv.org/abs/1810.04805)
@@ -182,7 +200,7 @@ Bayesian Optimisation or random search on the parameters to improve performance.
 Note: I am still trying some hyperparameter combinations, but submitted early as I don't see any significant change coming.
 In the case where there is, I will update the excel sheet.
 ## Potential improvements to performance with time
-* I would love to go deeper into Deep learning techniques, including gradient and batch accumulation, and
+* I would love to go deeper into deep learning techniques, including gradient accumulation, and
 other optimizations functions. I wold try to tweak these methods to perform best with our dataset.
 * I would try out different architectures on top of distilbert and other transformer models, especially RoBERTa and BERT large, since with this much
 data I would suspect larger models would give better results.
@@ -217,4 +235,4 @@ and I believe that I learned a lot from it! For someone at the start of their ca
 ## Charity organisation of choice
 My hometown in India has been hit with the worst cyclone in decades. I would love to think that I was 
 able to provide any little assistance. Additionally, I believe US dollars will be able to make more of an impact in India. 
-Donate here!
+Donate [here](https://donations.belurmath.org/product/donations-for-amphan-cyclone-relief-from-foreign-nationals-in-usd?currency=USD)!
