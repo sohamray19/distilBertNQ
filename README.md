@@ -106,6 +106,7 @@ python run_distilbert.py \
 --clipped=True \
 --len_train=100000
 ```
+**Note**: The command above will train on 100000 samples. To train on entire dataset, set --clipped=False 
 **Note**: To resolve any OOM or resource exhaustion errors try reducing batch-size
 
 ## Validation
