@@ -7,9 +7,11 @@
 # -----------------------------------------------------------------------------------------------------------------------------------------------
 
 
+from tensorflow.keras.optimizers.schedules import PolynomialDecay
 from transformers.modeling_tf_utils import get_initializer
 from generate_predictions import get_prediction_json
 from adamw_optimizer import CustomSchedule, AdamW
+from tensorflow.keras.optimizers import Adam
 from transformers import create_optimizer as co
 import tensorflow_addons as tfa
 from transformers import (
@@ -77,7 +79,7 @@ flags.DEFINE_float(
 
 flags.DEFINE_integer("shuffle_buffer_size", 100000, "shuffle buffer size")
 
-flags.DEFINE_integer("best_indexes", 10, "number of best start/end indexes to consider")
+flags.DEFINE_integer("best_indexes", 20, "number of best start/end indexes to consider")
 
 # answer types set to 5 for "Unknown, Long, Short, Yes, No"
 answer_types = 5
@@ -318,8 +320,8 @@ def create_optimizer(distilBert):
     # -----------------------------------------------------------------------------------------------------------------------------------------------
 
     # AdamW optimizer, slightly similar to what Google uses from tensorflow-addons library
-    #     return tfa.optimizers.AdamW(weight_decay=FLAGS.init_weight_decay_rate,
-    #                                       learning_rate=FLAGS.init_learning_rate,
+    # return tfa.optimizers.AdamW(weight_decay=FLAGS.init_weight_decay_rate,
+    #                                   learning_rate=FLAGS.init_learning_rate,
     #                                   beta_1=0.9, beta_2=0.999,
     #                                   epsilon=1e-6)
 
@@ -331,14 +333,15 @@ def create_optimizer(distilBert):
 
     # custom learning rate schedulers with warmup-steps and decay
     # source adam_optimizer.py
-    # schedule = CustomSchedule(
-    #     initial_learning_rate=FLAGS.init_learning_rate,
-    #     decay_steps=decay_steps,
-    #     end_learning_rate=FLAGS.init_learning_rate,
-    #     power=1.0,
-    #     cycle=True,
-    #     num_warmup_steps=0,
-    # )
+    schedule = CustomSchedule(
+        initial_learning_rate=FLAGS.init_learning_rate,
+        decay_steps=decay_steps,
+        end_learning_rate=FLAGS.init_learning_rate,
+        power=1.0,
+        cycle=True,
+        num_warmup_steps=0,
+    )
+
     # I also tried a simple Polynomial Decay schedule, without warmup
     # source page https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/schedules/PolynomialDecay
     # schedule = PolynomialDecay(
@@ -375,24 +378,24 @@ def create_optimizer(distilBert):
     # AdamW optimizer with a polynomial decay learning rate scheduler, with warm-up,
     # excluding "LayerNorm", "layer_norm", "bias" layers
     # source code https://huggingface.co/transformers/main_classes/optimizer_schedules.html
-    return co(
-        FLAGS.init_learning_rate, decay_steps, 1000, end_lr=0.0, optimizer_type="adamw"
-    )
+    # return co(
+    #     FLAGS.init_learning_rate, decay_steps, 1000, end_lr=0.0, optimizer_type="adamw"
+    # )
 
     # -----------------------------------------------------------------------------------------------------------------------------------------------
 
     # LAMB optimizer, known for training BERT super fast (find it at https://arxiv.org/abs/1904.00962 )
     # Another optimizer, that is a modified version of AdamW specifically for BERT
     # source page https://www.tensorflow.org/addons/api_docs/python/tfa/optimizers/LAMB
-    # return tfa.optimizers.LAMB(
-    #     learning_rate=schedule,
-    #     beta_1=0.9,
-    #     beta_2=0.999,
-    #     epsilon=1e-06,
-    #     weight_decay_rate=FLAGS.init_weight_decay_rate,
-    #     exclude_from_weight_decay = ["LayerNorm", "layer_norm", "bias"],
-    #     name='LAMB'
-    # )
+    return tfa.optimizers.LAMB(
+        learning_rate=schedule,
+        beta_1=0.9,
+        beta_2=0.999,
+        epsilon=1e-06,
+        weight_decay_rate=FLAGS.init_weight_decay_rate,
+        exclude_from_weight_decay=["LayerNorm", "layer_norm", "bias"],
+        name="LAMB",
+    )
 
     # -----------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -486,11 +489,11 @@ def compute_gradient(
 def checkpt(distilBert, checkpoint_path):
     """Reads checkpoint if present and returns checkpoint manager to store checkpoints if required"""
     ckpt = tf.train.Checkpoint(model=distilBert)
-    ckpt_manager = tf.train.CheckpointManager(ckpt, checkpoint_path, max_to_keep=10)
+    ckpt_manager = tf.train.CheckpointManager(ckpt, checkpoint_path, max_to_keep=100)
     # restore latest checkpoint if present
     if ckpt_manager.latest_checkpoint:
         ckpt.restore(ckpt_manager.latest_checkpoint)
-        print("Latest checkpoint restored")
+        print("Checkpoint restored")
     else:
         print("No checkpoint found")
     return ckpt_manager
@@ -571,13 +574,17 @@ def train(
                 train_acc_ans_type,
             ) = acc
 
-            if (instance + 1) % 1 == 0:
+            if (instance + 1) % 100 == 0:
                 print("Epoch {}, Batches processed {}".format(epoch + 1, instance + 1,))
 
-                print("Overall acc = {:.4f}".format(train_acc.result()))
-                print("Start Token acc = {:.4f}".format(train_acc_start_pos.result()))
-                print("End Token acc = {:.4f}".format(train_acc_end_pos.result()))
-                print("Answer Type acc = {:.4f}".format(train_acc_ans_type.result()))
+                print(
+                    "Accuracy: Overall {:.4f}, Start Token {:.4f}, End Token {:.4f}, Answer Type {:.4f} ".format(
+                        train_acc.result(),
+                        train_acc_start_pos.result(),
+                        train_acc_end_pos.result(),
+                        train_acc_ans_type.result(),
+                    )
+                )
 
                 print("-" * 100)
 
@@ -588,10 +595,14 @@ def train(
                 )
             )
 
-            print("Overall: loss = acc = {:.4f}".format(train_acc.result()))
-            print("Start Token: acc = {:.4f}".format(train_acc_start_pos.result()))
-            print("End Token: acc = {:.4f}".format(train_acc_end_pos.result()))
-            print("Answer Type: acc = {:.4f}".format(train_acc_ans_type.result()))
+            print(
+                "Accuracy: Overall {:.4f}, Start Token {:.4f}, End Token {:.4f}, Answer Type {:.4f} ".format(
+                    train_acc.result(),
+                    train_acc_start_pos.result(),
+                    train_acc_end_pos.result(),
+                    train_acc_ans_type.result(),
+                )
+            )
 
 
 # -----------------------------------------------------------------------------------------------------------------------
@@ -650,7 +661,7 @@ def main(argv):
         print("Time taken:", time.time() - st)
     else:
         # get checkpoint if exists
-        _ = checkpt(distilBert, FLAGS.checkpoint_path)
+        ckpt_manager = checkpt(distilBert, FLAGS.checkpoint_path)
         print("Getting predictions...")
         # generate predictions.json by converting logits to labels
         get_prediction_json(

@@ -7,7 +7,7 @@ DistilBert Transformer
 Best combined score:
 * **F1-score** = Long: 58, Short: 49
 * **Precision** = Long: 62, Short: 49
-* **Recall** = Long: 46, Short: 50
+* **Recall** = Long: 54, Short: 50
 
 Best Long Answer score: 
 * **F1-score** = 60
@@ -40,7 +40,7 @@ pip install -r requirements_data_gen.txt
 Tensorflow 2.0 should automatically start using the gpu if cuda and cudnn are installed.
 Here are some links that might help with troubleshooting:
 [1](https://www.tensorflow.org/install/gpu), [2](https://www.tensorflow.org/guide/gpu)
-Note: If a TensorFlow operation has both CPU and GPU implementations, by default the GPU devices will be given priority when the operation is assigned to a device.
+**Note**: If a TensorFlow operation has both CPU and GPU implementations, by default the GPU devices will be given priority when the operation is assigned to a device.
 
 ### Getting the data
 To get the preprocessed training set, and vocabulary from Google's bert-joint-baseline, run these commands
@@ -197,7 +197,7 @@ For more information, please refer to the LAMB paper sited above.
 I am attaching an excel file [here](https://docs.google.com/spreadsheets/d/1zbUUo1AZ3lSKmf6uOprpUxFrqU7zJGqbrNLiNW-782o/edit?usp=sharing) 
 which represents my process of hyperparameter tuning, with results. With more time (or with better hardware), I would love to run 
 Bayesian Optimisation or random search on the parameters to improve performance.
-Note: I am still trying some hyperparameter combinations, but submitted early as I don't see any significant change coming.
+**Note**: I am still trying some hyperparameter combinations, but submitted early as I don't see any significant change coming.
 In the case where there is, I will update the excel sheet.
 ## Potential improvements to performance with time
 * I would love to go deeper into deep learning techniques, including gradient accumulation, and
