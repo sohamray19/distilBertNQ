@@ -165,11 +165,11 @@ pass the one with annotations to nq_eval program and the one without as the pred
 
 ## Model Description and Architectural Decisions
 * **Literature Review**: Before I get into model description, here are the papers I referenced to make my architectural decisions: 
-    * [LAMB](https://arxiv.org/abs/1904.00962.pdf)
+    * [LAMB](https://arxiv.org/pdf/1904.00962.pdf)
     * [BERT-Baseline](https://arxiv.org/pdf/1901.08634.pdf)
-    * [BERT](https://arxiv.org/abs/1810.04805.pdf)
-    * [DistilBert](https://arxiv.org/abs/1910.01108.pdf)
-    * [Fine-tuning](https://arxiv.org/abs/2002.06305.pdf)
+    * [BERT](https://arxiv.org/pdf/1810.04805.pdf)
+    * [DistilBert](https://arxiv.org/pdf/1910.01108.pdf)
+    * [Fine-tuning](https://arxiv.org/pdf/2002.06305.pdf)
     * [HuggingFace-Transformers](https://arxiv.org/pdf/1910.03771.pdf)
 * **Approach**: After the literature review, my first step was to set up the skeleton of the pipeline. I wrote and revised the code
 to train the model, generate the validation dataset, and then generate the predictions.json file for evaluation. For generating predictions, as well 
