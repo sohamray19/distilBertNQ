@@ -223,20 +223,3 @@ and transformers models.
 * I would use Random Search/Bayesian Optimization (or something more suitable if that exists) for hyperparameter tuning on the model
 * I would use techniques like cross validation to check for overfitting
 * I would try an ensemble-based approach
-
-## Feedback
-As someone attempting a question answering task for the first time, I enjoyed learning and working on this challenging task. Prompt replies, ample time and resources were provided, and the 
-charity donation was a cherry on top! 
-
-Potentially, I would consider providing lesser time and a starter code, so that the candidate can focus
-more on the architectural decisions, and preprocessing change, if any, without spending too much time on reading and understanding
-basic (albeit necessary) preprocessing and prediction generation code.
-
-Overall, having never worked on data of this scale before, or question answering, I loved the assignment,
-and I believe that I learned a lot from it! For someone at the start of their career, that's what I'm looking to do!
-
-
-## Charity organisation of choice
-My hometown in India has been hit with the worst cyclone in decades. I would love to think that I was 
-able to provide any little assistance. Additionally, I believe US dollars will be able to make more of an impact in India. 
-Donate [here](https://donations.belurmath.org/product/donations-for-amphan-cyclone-relief-from-foreign-nationals-in-usd?currency=USD)!
